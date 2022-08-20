@@ -7,6 +7,7 @@
 1. vue3
 2. vue-router
 3. express
+4. vuex
 
 ## 安装 Vite Vue3
 
@@ -212,5 +213,114 @@ createServer()
 修改 index.html
 ```html
 <div id="app"><!--ssr-outlet--></div>
+```
+
+## vuex
+vuex
+
+### 安装
+```bash
+yarn add vuex
+```
+
+### 配置 vuex
+新建 /src/store/index.js 配置 Store
+```javascript
+import { createStore } from "vuex"
+
+export function createSSRStore () {
+  // 避免内存泄漏 所以每次都要导出新的 store
+  return createStore({
+    state: {
+      count: 0
+    },
+    mutations: {
+      setCount(state, payload) {
+        state.count = payload
+        return state.count
+      }
+    }
+  })
+}
+```
+修改 main.js
+
+```javascript
+import { createSSRStore } from './store/index'
+
+export function createApp(params) {
+  const app = createSSRApp(App)
+  const router = createSSRRouter()
+  const store = createSSRStore()
+
+  app.use(router)
+  app.use(store)
+
+  return { app, router, store }
+}
+```
+在 home 组件使用
+```vue
+<script setup>
+import { computed } from 'vue'
+import { useStore } from 'vuex'
+const store = useStore()
+const count = computed(() => store.state.count)
+</script>
+
+<template>
+  <div>Hello World!!! {{count}}</div>
+</template>
+
+<style scoped>
+</style>
+```
+
+### 服务器 Store 数据和 客户端 Store 数据同步
+
+将服务器数据插入到 index.html 文件中，客户端加载成功后，填充到客户端 Store
+
+修改服务端入口文件 entry-server.js
+```javascript
+export async function render(url) {
+  const { app, store, router } = createApp()
+  // 服务端传入 url 通知服务端渲染对应组件。
+  await router.push(url)
+  // 解析完该路由关联的全部组件，异步输入钩子和异步组件。
+  await router.isReady()
+  // 将 vue 渲染成 html 文件
+  const appHtml = await renderToString(app)
+  const state = store.state
+  // 导出 html 同时导出在服务区渲染好的 state 数据
+  return { appHtml, state }
+}
+```
+
+修改服务器文件 server.js
+```javascript
+const { appHtml, state } = await render(url)
+  
+// 5. 注入渲染后的应用程序 HTML 到模板中。
+const html = template.replace(`<!--ssr-outlet-->`, appHtml)
+// 将 state 数据转成 json 后插入到 html 中
+.replace("'<!--vuex-state-->'", JSON.stringify(state))
+```
+
+修改模版文件 index.html
+
+```html
+<script>
+  window.__INITIAL_STATE__ = '<!--vuex-state-->';
+</script>
+```
+
+修改客户端入口文件 entry-client.js
+```javascript
+const { app, router, store } = createApp()
+
+// 将服务端插入 index.html 的数据赋用到 Store
+if (window.__INITIAL_STATE__) {
+  store.replaceState(window.__INITIAL_STATE__)
+}
 ```
 
