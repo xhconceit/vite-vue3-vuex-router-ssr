@@ -8,6 +8,7 @@
 2. vue-router
 3. express
 4. vuex
+5. Axios
 
 ## 安装 Vite Vue3
 
@@ -322,5 +323,44 @@ const { app, router, store } = createApp()
 if (window.__INITIAL_STATE__) {
   store.replaceState(window.__INITIAL_STATE__)
 }
+```
+
+## Axios
+Axios 网络请求库
+
+### 安装
+```
+yarn add axios
+```
+
+### 编写测试接口
+修改 server.cjs
+```javascript
+// 测试接口
+app.use('/api', (req, res) => {
+  res.json({
+    count: Math.floor(Math.random()*100)
+  })
+})
+```
+
+### 使用测试接口
+在 home 组件中使用测试接口
+修改 home.js
+```vue
+<script setup>
+import { computed, onMounted } from 'vue'
+import { useStore } from 'vuex'
+import axios from 'axios'
+const store = useStore()
+const count = computed(() => store.state.count)
+onMounted(() => {
+  // 页面挂载完成后调用接口
+  axios.get('/api').then(res => {
+  const { count } = res.data
+  store.commit('setCount', count)
+  })
+})
+</script>
 ```
 

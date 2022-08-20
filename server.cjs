@@ -16,6 +16,13 @@ async function createServer() {
   // 使用 vite 的 Connect 实例作为中间件
   app.use(vite.middlewares)
 
+  // 测试接口
+  app.use('/api', (req, res) => {
+    res.json({
+      count: Math.floor(Math.random()*100)
+    })
+  })
+
   app.use('*', async (req, res) => {
     const url = req.originalUrl
   
