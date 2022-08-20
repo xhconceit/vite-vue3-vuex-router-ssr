@@ -1,6 +1,6 @@
 import Home from '../view/home.vue'
 import Mine from '../view/mine.vue'
-import { createRouter, createWebHistory } from "vue-router";
+import { createMemoryHistory, createRouter, createWebHistory } from "vue-router";
 
 const routes = [
   {
@@ -15,7 +15,9 @@ const routes = [
   },
 ]
 
-export default createRouter({
-  routes,
-  history: createWebHistory()
-})
+export function createSSRRouter() {
+  return createRouter({
+    routes,
+    history: import.meta.env.SSR ? createMemoryHistory() : createWebHistory()
+  })
+}
