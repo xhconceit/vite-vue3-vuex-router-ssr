@@ -364,3 +364,111 @@ onMounted(() => {
 </script>
 ```
 
+## asyncData
+服务端请求数据渲染到页面中
+
+### 修改 home 组件
+home.vue
+```vue
+<script>
+import { computed, defineAsyncComponent, defineComponent, onMounted } from 'vue'
+import { useStore } from 'vuex'
+export default defineComponent({
+  setup() {
+    import axios from 'axios'
+    const store = useStore()
+    const count = computed(() => store.state.count)
+    return {
+      count
+    }
+  },
+  asyncData({store, route}) {
+    axios.get('/api').then(res => {
+      const { count } = res.data
+      store.commit('setCount', count)
+    })
+  }
+})
+</script>
+```
+
+### 修改服务端入口文件
+entry-server.js
+
+```javascript
+// 解析完该路由关联的全部组件，异步输入钩子和异步组件。
+await router.isReady()
+// 获取当前路由关联的全部组件
+const matchedComponents = router.currentRoute.value.matched.flatMap(record => Object.values(record.components))
+// 请求当前路由关联组件的 asyncData 数据
+await Promise.all(matchedComponents.forEach((Component) => {
+  if (Component.asyncData) {
+    return Component.asyncData({
+      store,
+      route
+    })
+  }
+}))
+```
+
+### 修改客户端入口文件
+entry-client.js
+```javascript
+router.isReady().then(() => {
+  router.beforeEach((to, form, next) => {
+    const toComponents = router.resolve(to).matched.flatMap(record => Object.values(record.components))
+    const formComponents = router.resolve(form).matched.flatMap(record => Object.values(record.components))
+    const actived = toComponents.filter((c, i) => {
+      return formComponents[i] !== c
+    })
+    const route = router.currentRoute
+    // 请求当前路由关联组件的 asyncData 数据
+    Promise.all(actived.map((Component) => {
+      if (Component.asyncData) {
+        return Component.asyncData({
+          store,
+          route
+        })
+      }
+      return Component
+    })).then(() => {
+      next()
+    })
+  })
+  // 挂载到页面
+  app.mount('#app')
+})
+```
+
+
+### 修改 home 组件
+```vue
+<script>
+import { computed, defineComponent } from 'vue'
+import { useStore } from 'vuex'
+import axios from 'axios'
+
+export default defineComponent({
+  setup() {
+    const store = useStore()
+    const count = computed(() => store.state.count)
+    return {
+      count
+    }
+  },
+  async asyncData({store, route}) {
+    await axios.get('http://localhost:3000/api').then(res => {
+      const { count } = res.data
+      store.commit('setCount', count)
+    })
+  }
+})
+</script>
+```
+
+
+## 运行
+
+```bash
+node server.cjs
+```
